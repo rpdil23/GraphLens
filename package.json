@@ -1,0 +1,86 @@
+{
+  "name": "graphlens",
+  "version": "0.1.0",
+  "description": "Interactive 2D & 3D visualizer for Microsoft GraphRAG and Graphify codebase knowledge graphs.",
+  "homepage": "https://rpdil23.github.io/GraphLens/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rpdil23/GraphLens.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rpdil23/GraphLens/issues"
+  },
+  "keywords": [
+    "graphrag",
+    "graphify",
+    "knowledge-graph",
+    "code-graph",
+    "ast-visualization",
+    "force-graph",
+    "3d-graph",
+    "parquet"
+  ],
+  "dependencies": {
+    "@emotion/react": "^11.13.0",
+    "@emotion/styled": "^11.13.0",
+    "@mui/icons-material": "^5.16.5",
+    "@mui/material": "^5.16.5",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.104",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "axios": "^1.7.2",
+    "d3-force": "^3.0.0",
+    "fuse.js": "^7.0.0",
+    "hyparquet": "^1.6.4",
+    "material-react-table": "^2.13.1",
+    "react": "^18.3.1",
+    "react-app-rewired": "^2.2.1",
+    "react-dom": "^18.3.1",
+    "react-dropzone": "^14.2.3",
+    "react-force-graph-2d": "^1.25.5",
+    "react-force-graph-3d": "^1.24.3",
+    "react-router-dom": "^6.27.0",
+    "react-scripts": "5.0.1",
+    "react-table": "^7.8.0",
+    "three": "^0.167.1",
+    "three-spritetext": "^1.8.2",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test --passWithNoTests",
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "devDependencies": {
+    "@types/d3-force": "^3.0.10",
+    "@types/react-table": "^7.7.20",
+    "@types/three": "^0.167.1",
+    "gh-pages": "^6.1.1"
+  }
+}

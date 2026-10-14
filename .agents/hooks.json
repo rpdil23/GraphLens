@@ -1,0 +1,20 @@
+{
+  "graphify-auto-update": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "cmd /c \"C:\\Users\\ramst\\AppData\\Roaming\\uv\\tools\\graphifyy\\Scripts\\python.exe scripts/graphify_auto_update.py\"",
+        "timeout": 5
+      }
+    ]
+  },
+  "failed-tests-injector": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "cmd /c \"C:\\Users\\ramst\\AppData\\Roaming\\uv\\tools\\graphifyy\\Scripts\\python.exe scripts/failed_tests_hook.py\"",
+        "timeout": 120
+      }
+    ]
+  }
+}
