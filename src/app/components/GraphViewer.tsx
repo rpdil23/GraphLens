@@ -34,7 +34,6 @@ import {
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import SearchIcon from "@mui/icons-material/Search";
-import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Fuse from "fuse.js";
 import {
@@ -699,11 +698,6 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
     ? includeTextUnits && includeCommunities && includeCovariates
     : includeTextUnits && includeCommunities;
 
-  const clearSearchResults = () => {
-    setApiSearchResults(null);
-    setSearchGraphData(null);
-  };
-
   return (
     <Box
       sx={{
@@ -843,68 +837,68 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
           hasTextUnits ||
           hasCommunities ||
           hasCovariates) && (
-          <FormGroup>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={includeDocuments}
-                  onChange={() => onIncludeDocumentsChange(!includeDocuments)}
-                  disabled={!hasDocuments || apiSearchResults !== null}
-                />
-              }
-              label="Include Documents"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={includeTextUnits}
-                  onChange={() => {
-                    if (!includeTextUnits) {
-                      onIncludeTextUnitsChange(true);
-                    } else if (includeTextUnits && !includeCovariates) {
-                      onIncludeTextUnitsChange(false);
-                    } else {
-                      onIncludeTextUnitsChange(false);
-                      onIncludeCovariatesChange(false);
-                    }
-                  }}
-                  disabled={!hasTextUnits || apiSearchResults !== null}
-                />
-              }
-              label="Include Text Units"
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={includeCommunities}
-                  onChange={() => onIncludeCommunitiesChange(!includeCommunities)}
-                  disabled={!hasCommunities || apiSearchResults !== null}
-                />
-              }
-              label="Include Communities"
-            />
-
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={includeCovariates}
-                  onChange={() => {
-                    if (!includeCovariates) {
+            <FormGroup>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={includeDocuments}
+                    onChange={() => onIncludeDocumentsChange(!includeDocuments)}
+                    disabled={!hasDocuments || apiSearchResults !== null}
+                  />
+                }
+                label="Include Documents"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={includeTextUnits}
+                    onChange={() => {
                       if (!includeTextUnits) {
                         onIncludeTextUnitsChange(true);
+                      } else if (includeTextUnits && !includeCovariates) {
+                        onIncludeTextUnitsChange(false);
+                      } else {
+                        onIncludeTextUnitsChange(false);
+                        onIncludeCovariatesChange(false);
                       }
-                      onIncludeCovariatesChange(true);
-                    } else {
-                      onIncludeCovariatesChange(false);
-                    }
-                  }}
-                  disabled={!hasCovariates || apiSearchResults !== null}
-                />
-              }
-              label="Include Covariates"
-            />
-          </FormGroup>
-        )}
+                    }}
+                    disabled={!hasTextUnits || apiSearchResults !== null}
+                  />
+                }
+                label="Include Text Units"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={includeCommunities}
+                    onChange={() => onIncludeCommunitiesChange(!includeCommunities)}
+                    disabled={!hasCommunities || apiSearchResults !== null}
+                  />
+                }
+                label="Include Communities"
+              />
+
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={includeCovariates}
+                    onChange={() => {
+                      if (!includeCovariates) {
+                        if (!includeTextUnits) {
+                          onIncludeTextUnitsChange(true);
+                        }
+                        onIncludeCovariatesChange(true);
+                      } else {
+                        onIncludeCovariatesChange(false);
+                      }
+                    }}
+                    disabled={!hasCovariates || apiSearchResults !== null}
+                  />
+                }
+                label="Include Covariates"
+              />
+            </FormGroup>
+          )}
 
         {availableEntityTypes.length > 0 && (
           <Accordion

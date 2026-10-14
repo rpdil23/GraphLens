@@ -79,6 +79,7 @@
   },
   "devDependencies": {
     "@types/d3-force": "^3.0.10",
+    "@babel/plugin-proposal-private-property-in-object": "^7.21.11",
     "@types/react-table": "^7.7.20",
     "@types/three": "^0.167.1",
     "gh-pages": "^6.1.1"
