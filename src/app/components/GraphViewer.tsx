@@ -17,24 +17,31 @@ import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
+  Badge,
   Box,
   Button,
   Checkbox,
   Chip,
   CircularProgress,
+  Divider,
+  Drawer,
   FormControlLabel,
   FormGroup,
   IconButton,
+  Paper,
   Slider,
   Switch,
   Tooltip,
   Typography,
+  useMediaQuery,
   useTheme,
 } from "@mui/material";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import SearchIcon from "@mui/icons-material/Search";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import TuneIcon from "@mui/icons-material/Tune";
+import CloseIcon from "@mui/icons-material/Close";
 import Fuse from "fuse.js";
 import {
   CSS2DRenderer,
@@ -63,41 +70,39 @@ interface GraphViewerProps {
   graphType: "2d" | "3d";
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
-  onToggleGraphType: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onToggleGraphType: () => void;
   includeDocuments: boolean;
-  onIncludeDocumentsChange: React.Dispatch<React.SetStateAction<boolean>>;
   includeTextUnits: boolean;
-  onIncludeTextUnitsChange: React.Dispatch<React.SetStateAction<boolean>>;
+  onIncludeDocumentsChange: (value: boolean) => void;
+  onIncludeTextUnitsChange: (value: boolean) => void;
   includeCommunities: boolean;
-  onIncludeCommunitiesChange: React.Dispatch<React.SetStateAction<boolean>>;
+  onIncludeCommunitiesChange: (value: boolean) => void;
   includeCovariates: boolean;
-  onIncludeCovariatesChange: React.Dispatch<React.SetStateAction<boolean>>;
+  onIncludeCovariatesChange: (value: boolean) => void;
   hasDocuments: boolean;
   hasTextUnits: boolean;
   hasCommunities: boolean;
   hasCovariates: boolean;
   maxEntities: number;
-  onMaxEntitiesChange: React.Dispatch<React.SetStateAction<number>>;
+  onMaxEntitiesChange: (value: number) => void;
   totalEntities: number;
   dataSource?: "graphrag" | "graphify";
 }
-
-const NODE_R = 8;
 
 const GraphViewer: React.FC<GraphViewerProps> = ({
   data,
   graphType,
   isFullscreen,
+  onToggleFullscreen,
+  onToggleGraphType,
   includeDocuments,
-  onIncludeDocumentsChange,
   includeTextUnits,
+  onIncludeDocumentsChange,
   onIncludeTextUnitsChange,
   includeCommunities,
   onIncludeCommunitiesChange,
   includeCovariates,
   onIncludeCovariatesChange,
-  onToggleFullscreen,
-  onToggleGraphType,
   hasDocuments,
   hasTextUnits,
   hasCommunities,
@@ -107,59 +112,27 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
   totalEntities,
   dataSource = "graphrag",
 }) => {
-  const theme = useTheme();
-  const [colorByCommunity, setColorByCommunity] = useState<boolean>(
-    dataSource === "graphify",
-  );
-
-  useEffect(() => {
-    if (dataSource === "graphify") {
-      setColorByCommunity(true);
-    } else {
-      setColorByCommunity(false);
-    }
-  }, [dataSource]);
-
-  const getNodeColorCategory = useCallback(
-    (node: any): string => {
-      if (colorByCommunity && node?.community_name) {
-        return String(node.community_name);
-      }
-      return String(node?.type || node?.file_type || node?.label || "Entity");
-    },
-    [colorByCommunity],
-  );
-
-  const hasCommunityData = useMemo(
-    () => data.nodes.some((n) => Boolean(n.community_name)),
-    [data.nodes],
-  );
-
-  const sliderMax = Math.max(totalEntities, 1000);
-  const sliderMin = 50;
-  const toSliderValue = (value: number) =>
-    value === 0 ? sliderMax : Math.min(value, sliderMax);
-  const fromSliderValue = (value: number) => (value >= sliderMax ? 0 : value);
-  const committedSliderValue = toSliderValue(maxEntities);
-  const [isSliderDragging, setIsSliderDragging] = useState(false);
-  const [dragSliderValue, setDragSliderValue] = useState<number | null>(null);
-  const sliderValue =
-    isSliderDragging && dragSliderValue !== null
-      ? dragSliderValue
-      : committedSliderValue;
-  const [highlightNodes, setHighlightNodes] = useState<Set<CustomNode>>(
-    new Set(),
-  );
-  const [highlightLinks, setHighlightLinks] = useState<Set<CustomLink>>(
-    new Set(),
-  );
+  const [showLabels, setShowLabels] = useState(false);
+  const [showLinkLabels, setShowLinkLabels] = useState(false);
+  const [showHighlight, setShowHighlight] = useState(true);
+  const [colorByCommunity, setColorByCommunity] = useState<boolean>(() => {
+    // Default to true for Graphify so modularity clusters are immediately visible
+    return dataSource === "graphify";
+  });
+  const [highlightNodes, setHighlightNodes] = useState(new Set<CustomNode>());
+  const [highlightLinks, setHighlightLinks] = useState(new Set<CustomLink>());
   const [hoverNode, setHoverNode] = useState<CustomNode | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState<
-    (CustomNode | CustomLink)[]
-  >([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
   const [bottomDrawerOpen, setBottomDrawerOpen] = useState(false);
+  const [apiDrawerOpen, setApiDrawerOpen] = useState(false);
+  const [apiSearchResults, setApiSearchResults] = useState<SearchResult | null>(
+    null,
+  );
+  const [searchGraphData, setSearchGraphData] =
+    useState<CustomGraphData | null>(null);
+  const [serverUp, setServerUp] = useState<boolean>(false);
   const [selectedNode, setSelectedNode] = useState<CustomNode | null>(null);
   const [selectedRelationship, setSelectedRelationship] =
     useState<CustomLink | null>(null);
@@ -167,36 +140,82 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
   const [linkedRelationships, setLinkedRelationships] = useState<CustomLink[]>(
     [],
   );
-  const [showLabels, setShowLabels] = useState(false);
-  const [showLinkLabels, setShowLinkLabels] = useState(false);
-  const [showHighlight, setShowHighlight] = useState(true);
-  const graphRef = useRef<any>();
-  const extraRenderers = useMemo(
-    () => [new CSS2DRenderer() as any as Renderer],
-    [],
-  );
-  const nodeCount = data.nodes.length;
-  const linkCount = data.links.length;
-
-  const [apiDrawerOpen, setApiDrawerOpen] = useState(false);
-  const [apiSearchResults, setApiSearchResults] = useState<SearchResult | null>(
-    null,
-  );
-  const [serverUp, setServerUp] = useState<boolean>(false);
-
-  const [searchGraphData, setSearchGraphData] =
-    useState<CustomGraphData | null>(null);
-
-  const sanitizedBaseData = useMemo(() => sanitizeGraphData(data), [data]);
-  const initialGraphData = useRef<CustomGraphData>(sanitizedBaseData);
-  const prevBaseDataRef = useRef(data);
-
-  if (prevBaseDataRef.current !== data) {
-    prevBaseDataRef.current = data;
-    initialGraphData.current = sanitizedBaseData;
-  }
-
   const [hiddenTypes, setHiddenTypes] = useState<Set<string>>(new Set());
+  const [dragSliderValue, setDragSliderValue] = useState<number | null>(null);
+  const [isSliderDragging, setIsSliderDragging] = useState(false);
+
+  // Responsive mobile controls state
+  const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
+  const [desktopControlsOpen, setDesktopControlsOpen] = useState(true);
+
+  const graphRef = useRef<any>();
+  const initialGraphData = useRef<CustomGraphData>(data);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  const NODE_R = 4;
+
+  const sliderMin = 50;
+  const sliderMax = totalEntities > 50 ? Math.min(totalEntities, 2000) : 50;
+
+  // Convert maxEntities prop to slider position (0 means "All" -> sliderMax)
+  const toSliderValue = (val: number): number => {
+    if (val === 0 || val >= sliderMax) return sliderMax;
+    return Math.max(sliderMin, Math.min(val, sliderMax));
+  };
+
+  // Convert slider position back to maxEntities (sliderMax means "All" -> 0)
+  const fromSliderValue = (val: number): number => {
+    if (val >= sliderMax) return 0;
+    return val;
+  };
+
+  // While dragging use local state for responsiveness, otherwise sync with prop
+  const sliderValue = isSliderDragging
+    ? dragSliderValue ?? toSliderValue(maxEntities)
+    : toSliderValue(maxEntities);
+
+  const hasCommunityData = useMemo(() => {
+    return data.nodes.some(
+      (n) => n.community !== undefined && n.community !== null,
+    );
+  }, [data.nodes]);
+
+  // Color palette for communities
+  const communityColors = useMemo(() => {
+    return [
+      "#6366f1", // indigo
+      "#ec4899", // pink
+      "#10b981", // emerald
+      "#f59e0b", // amber
+      "#8b5cf6", // purple
+      "#06b6d4", // cyan
+      "#f97316", // orange
+      "#14b8a6", // teal
+      "#e11d48", // rose
+      "#84cc16", // lime
+      "#3b82f6", // blue
+      "#a855f7", // violet
+    ];
+  }, []);
+
+  const getNodeColorCategory = useCallback(
+    (node: any): string => {
+      if (colorByCommunity && node.community !== undefined && node.community !== null) {
+        const commIndex =
+          typeof node.community === "number"
+            ? Math.abs(node.community)
+            : Math.abs(
+                String(node.community)
+                  .split("")
+                  .reduce((acc, c) => acc + c.charCodeAt(0), 0),
+              );
+        return communityColors[commIndex % communityColors.length];
+      }
+      return node.type || "ENTITY";
+    },
+    [colorByCommunity, communityColors],
+  );
 
   const availableEntityTypes = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -278,17 +297,15 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
     searchType: "local" | "global",
   ) => {
     try {
-      const data: SearchResult =
+      const searchData: SearchResult =
         searchType === "local"
           ? await agent.Search.local(query)
           : await agent.Search.global(query);
 
-      setApiSearchResults(data);
-      // Process the search result to update the graph data
-      updateGraphData(data.context_data);
+      setApiSearchResults(searchData);
+      updateGraphData(searchData.context_data);
     } catch (err) {
       console.error("An error occurred during the API search.", err);
-    } finally {
     }
   };
 
@@ -313,17 +330,14 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
 
     const baseGraphData = initialGraphData.current;
 
-    // Assuming contextData has keys like entities, reports, relationships, sources
     Object.entries(contextData).forEach(([key, items]) => {
       if (Array.isArray(items)) {
         items.forEach((item) => {
           if (key === "relationships") {
-            // Handle links
             const existingLink = baseGraphData.links.find(
               (link) =>
                 link.human_readable_id?.toString() === item.id.toString(),
             );
-
             if (existingLink) {
               newLinks.push(existingLink);
             }
@@ -364,13 +378,11 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
       }
     });
 
-    // Update the graph data with the new nodes and links
     const updatedGraphData: CustomGraphData = sanitizeGraphData({
       nodes: [...newNodes],
       links: [...newLinks],
     });
 
-    // Set the updated data to trigger re-render
     setSearchGraphData(updatedGraphData);
   };
 
@@ -430,7 +442,6 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
       clearTimeout(hoverLinkTimeoutRef.current);
     }
 
-    // Debounce link hover to prevent state churn when mouse crosses dense link clusters
     hoverLinkTimeoutRef.current = setTimeout(() => {
       const newHighlightNodes = new Set<CustomNode>();
       const newHighlightLinks = new Set<CustomLink>();
@@ -455,13 +466,13 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
       ctx.arc(node.x!, node.y!, radius, 0, 2 * Math.PI, false);
       if (highlightNodes.has(node)) {
         ctx.fillStyle = node === hoverNode ? "red" : "orange";
-        ctx.globalAlpha = 1; // full opacity
+        ctx.globalAlpha = 1;
       } else {
         ctx.fillStyle = "gray";
-        ctx.globalAlpha = 0.3; // reduced opacity for non-highlighted nodes
+        ctx.globalAlpha = 0.3;
       }
       ctx.fill();
-      ctx.globalAlpha = 1; // reset alpha for other drawings
+      ctx.globalAlpha = 1;
     },
     [hoverNode, highlightNodes],
   );
@@ -495,19 +506,12 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
         graphRef.current.zoom(8, 1000);
       } else {
         graphRef.current.cameraPosition(
-          { x: node.x, y: node.y, z: 300 }, // new position
-          { x: node.x, y: node.y, z: 0 }, // lookAt
-          3000, // ms transition duration
+          { x: node.x, y: node.y, z: 300 },
+          { x: node.x, y: node.y, z: 0 },
+          3000,
         );
       }
     }
-
-    // Simulate mouse hover on the focused node
-    setTimeout(() => {
-      handleNodeHover(node);
-    }, 1000); // Adjust delay as needed
-
-    setRightDrawerOpen(false);
   };
 
   const handleFocusLinkClick = (link: CustomLink) => {
@@ -515,171 +519,74 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
     const newHighlightLinks = new Set<CustomLink>();
 
     newHighlightLinks.add(link);
-    let sourceNode: CustomNode | undefined;
-    let targetNode: CustomNode | undefined;
+    const sourceNode = link.source as unknown as CustomNode;
+    const targetNode = link.target as unknown as CustomNode;
 
-    if (typeof link.source !== "string") {
-      newHighlightNodes.add(link.source);
-      sourceNode = link.source;
+    if (sourceNode && typeof sourceNode !== "string") {
+      newHighlightNodes.add(sourceNode);
     }
-
-    if (typeof link.target !== "string") {
-      newHighlightNodes.add(link.target);
-      targetNode = link.target;
+    if (targetNode && typeof targetNode !== "string") {
+      newHighlightNodes.add(targetNode);
     }
 
     setHighlightNodes(newHighlightNodes);
     setHighlightLinks(newHighlightLinks);
 
-    if (
-      graphRef.current &&
-      sourceNode &&
-      targetNode &&
-      sourceNode.x &&
-      targetNode.x &&
-      sourceNode.y &&
-      targetNode.y
-    ) {
-      const midX = (sourceNode.x + targetNode.x) / 2;
-      const midY = (sourceNode.y + targetNode.y) / 2;
+    if (graphRef.current && sourceNode && targetNode) {
+      const midX = (sourceNode.x! + targetNode.x!) / 2;
+      const midY = (sourceNode.y! + targetNode.y!) / 2;
 
       if (graphType === "2d") {
         graphRef.current.centerAt(midX, midY, 1000);
         graphRef.current.zoom(8, 1000);
       } else {
+        const midZ = (sourceNode.z! + targetNode.z!) / 2;
         graphRef.current.cameraPosition(
-          { x: midX, y: midY, z: 300 }, // new position
-          { x: midX, y: midY, z: 0 }, // lookAt
-          3000, // ms transition duration
+          { x: midX, y: midY, z: midZ + 300 },
+          { x: midX, y: midY, z: midZ },
+          3000,
         );
       }
     }
-
-    // Simulate mouse hover on the focused link
-    setTimeout(() => {
-      handleLinkHover(link);
-    }, 1000); // Adjust delay as needed
-
-    setRightDrawerOpen(false);
   };
 
   const handleNodeClick = (node: CustomNode) => {
-    setSelectedRelationship(null);
     setSelectedNode(node);
+    setSelectedRelationship(null);
     setLinkedNodes(node.neighbors || []);
     setLinkedRelationships(node.links || []);
     setBottomDrawerOpen(true);
   };
 
   const handleLinkClick = (link: CustomLink) => {
-    setSelectedNode(null);
     setSelectedRelationship(link);
-    const linkSource =
-      typeof link.source === "object"
-        ? (link.source as CustomNode).id
-        : link.source;
-    const linkTarget =
-      typeof link.target === "object"
-        ? (link.target as CustomNode).id
-        : link.target;
-    const sourceNode = data.nodes.find((node) => node.id === linkSource);
-    const targetNode = data.nodes.find((node) => node.id === linkTarget);
-    if (sourceNode && targetNode) {
-      const linkedNodes = [sourceNode, targetNode];
-      setLinkedNodes(linkedNodes);
-      const linkedRelationships = [link];
-      setLinkedRelationships(linkedRelationships);
-      setBottomDrawerOpen(true);
-    }
+    setSelectedNode(null);
+    const sourceNode = link.source as unknown as CustomNode;
+    const targetNode = link.target as unknown as CustomNode;
+    setLinkedNodes([sourceNode, targetNode].filter(Boolean));
+    setLinkedRelationships([]);
+    setBottomDrawerOpen(true);
   };
 
-  const getBackgroundColor = () =>
-    theme.palette.mode === "dark" ? "#000000" : "#FFFFFF";
+  const nodeCount = data.nodes.length;
+  const linkCount = data.links.length;
 
-  const getLinkColor = (link: CustomLink) =>
-    theme.palette.mode === "dark" ? "gray" : "lightgray";
-
-  const get3DLinkColor = (link: CustomLink) =>
-    theme.palette.mode === "dark" ? "lightgray" : "gray";
-
-  const getlinkDirectionalParticleColor = (link: CustomLink) =>
-    theme.palette.mode === "dark" ? "lightgray" : "gray";
-
-  const renderNodeLabel = (node: CustomNode, ctx: CanvasRenderingContext2D) => {
-    if (!showLabels) return; // Only render the label if showLabels is true
-
-    const label = node.name || "";
-    const fontSize = 4;
-    const padding = 2;
-    ctx.font = `${fontSize}px Sans-Serif`;
-
-    // Set the styles based on the theme mode
-    const backgroundColor =
-      theme.palette.mode === "dark"
-        ? "rgba(0, 0, 0, 0.6)"
-        : "rgba(255, 255, 255, 0.6)";
-
-    // Calculate label dimensions
-    const anyNode = node as any;
-    const textWidth =
-      anyNode.__textWidth ?? (anyNode.__textWidth = ctx.measureText(label).width);
-    const boxWidth = textWidth + padding * 2;
-    const boxHeight = fontSize + padding * 2;
-
-    if (node.x && node.y) {
-      // Draw the background rectangle with rounded corners
-      ctx.fillStyle = backgroundColor;
-      ctx.beginPath();
-      ctx.moveTo(node.x - boxWidth / 2 + 5, node.y - boxHeight / 2);
-      ctx.lineTo(node.x + boxWidth / 2 - 5, node.y - boxHeight / 2);
-      ctx.quadraticCurveTo(
-        node.x + boxWidth / 2,
-        node.y - boxHeight / 2,
-        node.x + boxWidth / 2,
-        node.y - boxHeight / 2 + 5,
-      );
-      ctx.lineTo(node.x + boxWidth / 2, node.y + boxHeight / 2 - 5);
-      ctx.quadraticCurveTo(
-        node.x + boxWidth / 2,
-        node.y + boxHeight / 2,
-        node.x + boxWidth / 2 - 5,
-        node.y + boxHeight / 2,
-      );
-      ctx.lineTo(node.x - boxWidth / 2 + 5, node.y + boxHeight / 2);
-      ctx.quadraticCurveTo(
-        node.x - boxWidth / 2,
-        node.y + boxHeight / 2,
-        node.x - boxWidth / 2,
-        node.y + boxHeight / 2 - 5,
-      );
-      ctx.lineTo(node.x - boxWidth / 2, node.y - boxHeight / 2 + 5);
-      ctx.quadraticCurveTo(
-        node.x - boxWidth / 2,
-        node.y - boxHeight / 2,
-        node.x - boxWidth / 2 + 5,
-        node.y - boxHeight / 2,
-      );
-      ctx.closePath();
-      ctx.fill();
-
-      // Draw the text in the center of the node
-      // ctx.fillStyle = textColor;
-      ctx.fillStyle =
-        node.color || (theme.palette.mode === "dark" ? "#ffffff" : "#222222");
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(label, node.x, node.y);
-    }
+  const getBackgroundColor = () => {
+    return theme.palette.mode === "dark" ? "#0a0a0f" : "#f8f9fa";
   };
 
-  const nodeThreeObject = (node: CustomNode) => {
-    if (!showLabels) {
-      return new THREE.Object3D();
+  const extraRenderers = useMemo(() => {
+    if (graphType === "3d" && showLabels) {
+      return [new CSS2DRenderer() as unknown as Renderer];
     }
+    return [];
+  }, [graphType, showLabels]);
 
+  const nodeThreeObject = (node: any) => {
+    if (!showLabels) return new THREE.Object3D();
     try {
       const nodeEl = document.createElement("div");
-      nodeEl.textContent = node.name || node.id; // Use either name or id for the label
+      nodeEl.textContent = node.name || node.id;
       nodeEl.style.color =
         node.color || (theme.palette.mode === "dark" ? "#ffffff" : "#222222");
       nodeEl.style.padding = "2px 4px";
@@ -690,7 +597,7 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
       return new CSS2DObject(nodeEl);
     } catch (error) {
       console.error("Error creating 3D object:", error);
-      return new THREE.Object3D(); // Fallback in case of error
+      return new THREE.Object3D();
     }
   };
 
@@ -698,159 +605,166 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
     ? includeTextUnits && includeCommunities && includeCovariates
     : includeTextUnits && includeCommunities;
 
-  return (
-    <Box
-      sx={{
-        height: isFullscreen ? "100vh" : "calc(100vh - 64px)",
-        width: isFullscreen ? "100vw" : "100%",
-        position: isFullscreen ? "fixed" : "relative",
-        top: 0,
-        left: 0,
-        zIndex: isFullscreen ? 1300 : "auto",
-        overflow: "hidden",
-        margin: 0,
-        padding: 0,
-        backgroundColor: getBackgroundColor(),
-      }}
-    >
-      <Box
-        sx={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          zIndex: 1400,
-          display: "flex",
-          flexDirection: "column",
-          gap: 2,
-          alignItems: "flex-end",
-        }}
-      >
-        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-          <Button
-            variant="contained"
-            onClick={toggleDrawer(true)}
-            startIcon={<SearchIcon />}
-          >
-            Search Nodes/Links
-          </Button>
-          {/* <FormControlLabel
-            control={
-              <Switch
-                checked={graphType === "3d"}
-                onChange={onToggleGraphType}
-              />
-            }
-            label="3D View"
-          /> */}
-          {/* <FormControlLabel
-            control={
-              <Switch
-                checked={showLabels}
-                onChange={() => setShowLabels(!showLabels)}
-              />
-            }
-            label="Show Node Labels"
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={showLinkLabels}
-                onChange={() => setShowLinkLabels(!showLinkLabels)}
-              />
-            }
-            label="Show Relationship Labels"
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                checked={showHighlight}
-                onChange={() => setShowHighlight(!showHighlight)}
-              />
-            }
-            label="Show Highlight"
-          /> */}
-          <Tooltip title={isFullscreen ? "Exit Full Screen" : "Full Screen"}>
-            <IconButton onClick={onToggleFullscreen} color="inherit">
-              {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-            </IconButton>
-          </Tooltip>
-        </Box>
+  // Active filter count for badge indicator
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (graphType === "3d") count += 1;
+    if (showLabels) count += 1;
+    if (showLinkLabels) count += 1;
+    if (!showHighlight) count += 1;
+    if (colorByCommunity) count += 1;
+    if (includeDocuments) count += 1;
+    if (includeTextUnits) count += 1;
+    if (includeCommunities) count += 1;
+    if (includeCovariates) count += 1;
+    if (hiddenTypes.size > 0) count += 1;
+    if (maxEntities !== 500 && maxEntities !== 0) count += 1;
+    return count;
+  }, [
+    graphType,
+    showLabels,
+    showLinkLabels,
+    showHighlight,
+    colorByCommunity,
+    includeDocuments,
+    includeTextUnits,
+    includeCommunities,
+    includeCovariates,
+    hiddenTypes.size,
+    maxEntities,
+  ]);
 
-        <Box
+  // Reusable controls content for both Desktop Panel and Mobile Drawer
+  const renderControlsContent = (inDrawer: boolean = false) => (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: inDrawer ? 2.5 : 1.75 }}>
+      {/* Section 1: Display & View */}
+      <Box>
+        <Typography
+          variant="caption"
           sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 1,
-            alignItems: "flex-start",
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+            color: "text.secondary",
+            display: "block",
+            mb: 0.75,
+            fontSize: "0.68rem",
           }}
         >
+          View & Physics
+        </Typography>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
           <FormControlLabel
             control={
               <Switch
+                size="small"
                 checked={graphType === "3d"}
                 onChange={onToggleGraphType}
               />
             }
-            label="3D View"
+            label={
+              <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.82rem" }}>
+                3D View
+              </Typography>
+            }
           />
           <FormControlLabel
             control={
               <Switch
+                size="small"
                 checked={showLabels}
                 onChange={() => setShowLabels(!showLabels)}
               />
             }
-            label="Show Node Labels"
+            label={
+              <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.82rem" }}>
+                Show Node Labels
+              </Typography>
+            }
           />
           <FormControlLabel
             control={
               <Switch
+                size="small"
                 checked={showLinkLabels}
                 onChange={() => setShowLinkLabels(!showLinkLabels)}
               />
             }
-            label="Show Link Labels"
+            label={
+              <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.82rem" }}>
+                Show Link Labels
+              </Typography>
+            }
           />
           <FormControlLabel
             control={
               <Switch
+                size="small"
                 checked={showHighlight}
                 onChange={() => setShowHighlight(!showHighlight)}
               />
             }
-            label="Show Highlight"
+            label={
+              <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.82rem" }}>
+                Highlight on Hover
+              </Typography>
+            }
           />
           {hasCommunityData && (
             <FormControlLabel
               control={
                 <Switch
+                  size="small"
                   checked={colorByCommunity}
                   onChange={() => setColorByCommunity(!colorByCommunity)}
                 />
               }
-              label="Color by Community"
+              label={
+                <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.82rem" }}>
+                  Color by Community
+                </Typography>
+              }
             />
           )}
         </Box>
+      </Box>
 
-        {(hasDocuments ||
-          hasTextUnits ||
-          hasCommunities ||
-          hasCovariates) && (
-            <FormGroup>
+      {/* Section 2: Data Layers (GraphRAG / Graphify) */}
+      {(hasDocuments || hasTextUnits || hasCommunities || hasCovariates) && (
+        <Box>
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              color: "text.secondary",
+              display: "block",
+              mb: 0.75,
+              fontSize: "0.68rem",
+            }}
+          >
+            Data Layers
+          </Typography>
+          <FormGroup sx={{ gap: 0.25 }}>
+            {hasDocuments && (
               <FormControlLabel
                 control={
                   <Checkbox
+                    size="small"
                     checked={includeDocuments}
                     onChange={() => onIncludeDocumentsChange(!includeDocuments)}
                     disabled={!hasDocuments || apiSearchResults !== null}
                   />
                 }
-                label="Include Documents"
+                label={<Typography variant="body2" sx={{ fontSize: "0.82rem" }}>Include Documents</Typography>}
               />
+            )}
+            {hasTextUnits && (
               <FormControlLabel
                 control={
                   <Checkbox
+                    size="small"
                     checked={includeTextUnits}
                     onChange={() => {
                       if (!includeTextUnits) {
@@ -865,22 +779,27 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
                     disabled={!hasTextUnits || apiSearchResults !== null}
                   />
                 }
-                label="Include Text Units"
+                label={<Typography variant="body2" sx={{ fontSize: "0.82rem" }}>Include Text Units</Typography>}
               />
+            )}
+            {hasCommunities && (
               <FormControlLabel
                 control={
                   <Checkbox
+                    size="small"
                     checked={includeCommunities}
                     onChange={() => onIncludeCommunitiesChange(!includeCommunities)}
                     disabled={!hasCommunities || apiSearchResults !== null}
                   />
                 }
-                label="Include Communities"
+                label={<Typography variant="body2" sx={{ fontSize: "0.82rem" }}>Include Communities</Typography>}
               />
-
+            )}
+            {hasCovariates && (
               <FormControlLabel
                 control={
                   <Checkbox
+                    size="small"
                     checked={includeCovariates}
                     onChange={() => {
                       if (!includeCovariates) {
@@ -895,51 +814,52 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
                     disabled={!hasCovariates || apiSearchResults !== null}
                   />
                 }
-                label="Include Covariates"
+                label={<Typography variant="body2" sx={{ fontSize: "0.82rem" }}>Include Covariates</Typography>}
               />
-            </FormGroup>
-          )}
+            )}
+          </FormGroup>
+        </Box>
+      )}
 
-        {availableEntityTypes.length > 0 && (
+      {/* Section 3: Entity Types */}
+      {availableEntityTypes.length > 0 && (
+        <Box>
           <Accordion
             disableGutters
             elevation={0}
+            defaultExpanded={inDrawer}
             sx={{
               backgroundColor:
                 theme.palette.mode === "dark"
-                  ? "rgba(30, 30, 30, 0.7)"
-                  : "rgba(255, 255, 255, 0.8)",
-              backdropFilter: "blur(6px)",
+                  ? "rgba(255, 255, 255, 0.04)"
+                  : "rgba(0, 0, 0, 0.03)",
               borderRadius: "8px !important",
-              border: "1px solid",
-              borderColor: "divider",
+              border: `1px solid ${theme.palette.divider}`,
               "&:before": { display: "none" },
               width: "100%",
-              maxWidth: 220,
-              mt: 1,
             }}
           >
             <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
+              expandIcon={<ExpandMoreIcon fontSize="small" />}
               sx={{
-                px: 1.5,
-                minHeight: 36,
+                px: 1.25,
+                minHeight: 34,
                 "& .MuiAccordionSummary-content": { my: 0.5 },
               }}
             >
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "0.8rem" }}>
                 Entity Types ({availableEntityTypes.length - hiddenTypes.size}/
                 {availableEntityTypes.length})
               </Typography>
             </AccordionSummary>
             <AccordionDetails
-              sx={{ px: 1.5, pt: 0, pb: 1, maxHeight: 180, overflowY: "auto" }}
+              sx={{ px: 1.25, pt: 0, pb: 1, maxHeight: 160, overflowY: "auto" }}
             >
-              <Box sx={{ display: "flex", gap: 1, mb: 1 }}>
+              <Box sx={{ display: "flex", gap: 1, mb: 0.75 }}>
                 <Button
                   size="small"
                   variant="text"
-                  sx={{ p: 0, minWidth: 0, fontSize: "0.75rem" }}
+                  sx={{ p: 0, minWidth: 0, fontSize: "0.72rem", textTransform: "none" }}
                   onClick={showAllTypes}
                 >
                   Select All
@@ -947,7 +867,7 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
                 <Button
                   size="small"
                   variant="text"
-                  sx={{ p: 0, minWidth: 0, fontSize: "0.75rem" }}
+                  sx={{ p: 0, minWidth: 0, fontSize: "0.72rem", textTransform: "none" }}
                   onClick={hideAllTypes}
                 >
                   Clear All
@@ -965,46 +885,388 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
                       color={isHidden ? "default" : "primary"}
                       variant={isHidden ? "outlined" : "filled"}
                       onClick={() => toggleType(type)}
-                      sx={{ fontSize: "0.7rem", opacity: isHidden ? 0.6 : 1 }}
+                      sx={{
+                        fontSize: "0.68rem",
+                        height: 22,
+                        opacity: isHidden ? 0.5 : 1,
+                      }}
                     />
                   );
                 })}
               </Box>
             </AccordionDetails>
           </Accordion>
-        )}
+        </Box>
+      )}
 
-        {totalEntities > 0 && (
-          <Box sx={{ width: 200, mt: 2 }}>
-            <Typography variant="body2" gutterBottom>
-              Max Entities: {maxEntities === 0 ? "All" : maxEntities}
-              {totalEntities > 0 && ` / ${totalEntities}`}
-            </Typography>
-            <Slider
-              value={sliderValue}
-              onChange={(_, value) => {
-                setIsSliderDragging(true);
-                setDragSliderValue(value as number);
+      {/* Section 4: Max Entities */}
+      {totalEntities > 0 && (
+        <Box sx={{ width: "100%", pt: 0.5 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, fontSize: "0.8rem", mb: 0.5 }}>
+            Max Entities: {maxEntities === 0 ? "All" : maxEntities}
+            {totalEntities > 0 && ` / ${totalEntities}`}
+          </Typography>
+          <Slider
+            size="small"
+            value={sliderValue}
+            onChange={(_, value) => {
+              setIsSliderDragging(true);
+              setDragSliderValue(value as number);
+            }}
+            onChangeCommitted={(_, value) => {
+              setIsSliderDragging(false);
+              setDragSliderValue(null);
+              onMaxEntitiesChange(fromSliderValue(value as number));
+            }}
+            min={sliderMin}
+            max={sliderMax}
+            step={50}
+            marks={[
+              { value: sliderMin, label: String(sliderMin) },
+              { value: sliderMax, label: "All" },
+            ]}
+            valueLabelDisplay="auto"
+            valueLabelFormat={(value) => (value >= sliderMax ? "All" : value)}
+            disabled={apiSearchResults !== null}
+          />
+        </Box>
+      )}
+    </Box>
+  );
+
+  return (
+    <Box
+      sx={{
+        height: isFullscreen ? "100vh" : "100%",
+        width: isFullscreen ? "100vw" : "100%",
+        position: isFullscreen ? "fixed" : "relative",
+        top: 0,
+        left: 0,
+        zIndex: isFullscreen ? 1300 : "auto",
+        overflow: "hidden",
+        margin: 0,
+        padding: 0,
+        backgroundColor: getBackgroundColor(),
+      }}
+    >
+      {/* Top Left Glass Badge */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: { xs: 8, sm: 12 },
+          left: { xs: 8, sm: 12 },
+          zIndex: 1400,
+          pointerEvents: "none",
+        }}
+      >
+        <Paper
+          elevation={2}
+          sx={{
+            pointerEvents: "auto",
+            display: "flex",
+            alignItems: "center",
+            gap: { xs: 0.75, sm: 1 },
+            px: { xs: 1, sm: 1.5 },
+            py: { xs: 0.4, sm: 0.5 },
+            borderRadius: "20px",
+            backgroundColor:
+              theme.palette.mode === "dark"
+                ? "rgba(18, 18, 24, 0.85)"
+                : "rgba(255, 255, 255, 0.9)",
+            backdropFilter: "blur(12px)",
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: "0 2px 10px rgba(0, 0, 0, 0.12)",
+          }}
+        >
+          <Chip
+            label={dataSource === "graphify" ? "⚡ Graphify" : "🌐 GraphRAG"}
+            size="small"
+            color={dataSource === "graphify" ? "secondary" : "primary"}
+            sx={{
+              fontWeight: 700,
+              fontSize: { xs: "0.68rem", sm: "0.75rem" },
+              height: { xs: 20, sm: 22 },
+            }}
+          />
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 600,
+              color: "text.secondary",
+              fontSize: { xs: "0.68rem", sm: "0.75rem" },
+              whiteSpace: "nowrap",
+            }}
+          >
+            {nodeCount} nodes · {linkCount} rels
+          </Typography>
+        </Paper>
+      </Box>
+
+      {/* Top Right Controls & Actions */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: { xs: 8, sm: 12 },
+          right: { xs: 8, sm: 12 },
+          zIndex: 1400,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+          alignItems: "flex-end",
+          pointerEvents: "none",
+        }}
+      >
+        {/* Action Bar */}
+        <Box
+          sx={{
+            display: "flex",
+            gap: { xs: 0.6, sm: 1 },
+            alignItems: "center",
+            pointerEvents: "auto",
+          }}
+        >
+          {/* Search Button */}
+          {isMobile ? (
+            <Tooltip title="Search Nodes & Relationships">
+              <IconButton
+                size="small"
+                onClick={toggleDrawer(true)}
+                sx={{
+                  backgroundColor:
+                    theme.palette.mode === "dark"
+                      ? "rgba(18, 18, 24, 0.85)"
+                      : "rgba(255, 255, 255, 0.92)",
+                  backdropFilter: "blur(10px)",
+                  border: `1px solid ${theme.palette.divider}`,
+                  color: theme.palette.text.primary,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                  p: 0.75,
+                }}
+              >
+                <SearchIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="contained"
+              size="small"
+              onClick={toggleDrawer(true)}
+              startIcon={<SearchIcon />}
+              sx={{
+                borderRadius: "20px",
+                textTransform: "none",
+                fontWeight: 600,
+                px: 1.75,
+                py: 0.45,
+                fontSize: "0.8rem",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
               }}
-              onChangeCommitted={(_, value) => {
-                setIsSliderDragging(false);
-                setDragSliderValue(null);
-                onMaxEntitiesChange(fromSliderValue(value as number));
+            >
+              Search
+            </Button>
+          )}
+
+          {/* Controls Trigger */}
+          {isMobile ? (
+            <Badge
+              color="secondary"
+              badgeContent={activeFilterCount}
+              invisible={activeFilterCount === 0}
+            >
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => setMobileControlsOpen(true)}
+                startIcon={<TuneIcon sx={{ fontSize: "16px !important" }} />}
+                sx={{
+                  borderRadius: "20px",
+                  px: 1.25,
+                  py: 0.45,
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  textTransform: "none",
+                  backgroundColor:
+                    dataSource === "graphify" ? "#a855f7" : "#0284c7",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                  whiteSpace: "nowrap",
+                  "&:hover": {
+                    backgroundColor:
+                      dataSource === "graphify" ? "#9333ea" : "#0369a1",
+                  },
+                }}
+              >
+                Controls
+              </Button>
+            </Badge>
+          ) : (
+            <Tooltip
+              title={
+                desktopControlsOpen ? "Hide Controls Panel" : "Show Controls Panel"
+              }
+            >
+              <IconButton
+                size="small"
+                onClick={() => setDesktopControlsOpen(!desktopControlsOpen)}
+                color={desktopControlsOpen ? "primary" : "default"}
+                sx={{
+                  backgroundColor:
+                    theme.palette.mode === "dark"
+                      ? "rgba(18, 18, 24, 0.85)"
+                      : "rgba(255, 255, 255, 0.92)",
+                  backdropFilter: "blur(10px)",
+                  border: `1px solid ${theme.palette.divider}`,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                  p: 0.75,
+                }}
+              >
+                <TuneIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          {/* Fullscreen Button */}
+          <Tooltip title={isFullscreen ? "Exit Full Screen" : "Full Screen"}>
+            <IconButton
+              size="small"
+              onClick={onToggleFullscreen}
+              sx={{
+                backgroundColor:
+                  theme.palette.mode === "dark"
+                    ? "rgba(18, 18, 24, 0.85)"
+                    : "rgba(255, 255, 255, 0.92)",
+                backdropFilter: "blur(10px)",
+                border: `1px solid ${theme.palette.divider}`,
+                color: theme.palette.text.primary,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                p: 0.75,
               }}
-              min={sliderMin}
-              max={sliderMax}
-              step={50}
-              marks={[
-                { value: sliderMin, label: String(sliderMin) },
-                { value: sliderMax, label: "All" },
-              ]}
-              valueLabelDisplay="auto"
-              valueLabelFormat={(value) => (value >= sliderMax ? "All" : value)}
-              disabled={apiSearchResults !== null}
-            />
-          </Box>
+            >
+              {isFullscreen ? (
+                <FullscreenExitIcon fontSize="small" />
+              ) : (
+                <FullscreenIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        {/* Desktop Collapsible Floating Card */}
+        {!isMobile && desktopControlsOpen && (
+          <Paper
+            elevation={4}
+            sx={{
+              pointerEvents: "auto",
+              p: 2,
+              width: 250,
+              maxHeight: "calc(100vh - 130px)",
+              overflowY: "auto",
+              borderRadius: 3,
+              backgroundColor:
+                theme.palette.mode === "dark"
+                  ? "rgba(18, 18, 24, 0.88)"
+                  : "rgba(255, 255, 255, 0.92)",
+              backdropFilter: "blur(14px)",
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.18)",
+            }}
+          >
+            {renderControlsContent(false)}
+          </Paper>
         )}
       </Box>
+
+      {/* Mobile Controls Drawer (Bottom Sheet) */}
+      <Drawer
+        anchor="bottom"
+        open={isMobile && mobileControlsOpen}
+        onClose={() => setMobileControlsOpen(false)}
+        PaperProps={{
+          sx: {
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            maxHeight: "82vh",
+            backgroundColor:
+              theme.palette.mode === "dark" ? "#14141e" : "#ffffff",
+            backgroundImage: "none",
+            p: 2.5,
+            pt: 1.5,
+            display: "flex",
+            flexDirection: "column",
+          },
+        }}
+        sx={{ zIndex: 1600 }}
+      >
+        {/* Pull Handle */}
+        <Box
+          sx={{
+            width: 38,
+            height: 4,
+            borderRadius: 2,
+            bgcolor: "text.disabled",
+            mx: "auto",
+            mb: 1.5,
+            opacity: 0.4,
+          }}
+        />
+
+        {/* Header */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 1.5,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              Graph Controls & Filters
+            </Typography>
+            <Chip
+              label={dataSource === "graphify" ? "Graphify" : "GraphRAG"}
+              size="small"
+              color={dataSource === "graphify" ? "secondary" : "primary"}
+              sx={{ fontWeight: 600, fontSize: "0.68rem", height: 20 }}
+            />
+          </Box>
+          <IconButton
+            size="small"
+            onClick={() => setMobileControlsOpen(false)}
+            sx={{ color: "text.secondary" }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+
+        <Divider sx={{ mb: 2 }} />
+
+        {/* Scrollable Content */}
+        <Box sx={{ overflowY: "auto", flexGrow: 1, pr: 0.5, pb: 2 }}>
+          {renderControlsContent(true)}
+        </Box>
+
+        {/* Bottom Done Button */}
+        <Button
+          variant="contained"
+          fullWidth
+          onClick={() => setMobileControlsOpen(false)}
+          sx={{
+            mt: 1,
+            py: 1.1,
+            borderRadius: 2.5,
+            fontWeight: 700,
+            fontSize: "0.85rem",
+            textTransform: "none",
+            backgroundColor: dataSource === "graphify" ? "#a855f7" : "#0284c7",
+            "&:hover": {
+              backgroundColor:
+                dataSource === "graphify" ? "#9333ea" : "#0369a1",
+            },
+          }}
+        >
+          Apply & View Graph
+        </Button>
+      </Drawer>
 
       <APISearchDrawer
         apiDrawerOpen={apiDrawerOpen}
@@ -1049,80 +1311,132 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
           cooldownTicks={100}
           linkDirectionalArrowLength={3.5}
           linkDirectionalArrowRelPos={1}
-          linkWidth={(link) =>
-            showHighlight && highlightLinks.has(link) ? 5 : 1
-          }
-          linkDirectionalParticles={(link) =>
-            showHighlight && highlightLinks.has(link) ? 4 : 0
-          }
-          linkDirectionalParticleWidth={4}
-          linkDirectionalParticleColor={
-            showHighlight ? getlinkDirectionalParticleColor : undefined
-          }
-          nodeCanvasObjectMode={(node) =>
-            showHighlight && highlightNodes.has(node)
-              ? "before"
-              : showLabels
-                ? "after"
-                : undefined
-          }
-          nodeCanvasObject={(node, ctx, globalScale) => {
-            if (showHighlight && highlightNodes.has(node)) {
-              paintRing(node as CustomNode, ctx);
-            }
-            if (
-              showLabels &&
-              (globalScale >= 1.2 ||
-                (showHighlight && highlightNodes.has(node as CustomNode)))
-            ) {
-              renderNodeLabel(node as CustomNode, ctx);
-            }
-          }}
-          linkCanvasObjectMode={() => (showLinkLabels ? "after" : undefined)}
-          linkCanvasObject={(link, ctx, globalScale) => {
-            if (
-              showLinkLabels &&
-              (globalScale >= 1.5 ||
-                (showHighlight && highlightLinks.has(link as CustomLink)))
-            ) {
-              const label = (link as any).relation || link.type || "";
-              const fontSize = 4;
-              ctx.font = `${fontSize}px Sans-Serif`;
-              ctx.fillStyle =
-                theme.palette.mode === "dark" ? "lightgray" : "darkgray";
-              const source =
-                typeof link.source !== "string"
-                  ? (link.source as CustomNode)
-                  : null;
-              const target =
-                typeof link.target !== "string"
-                  ? (link.target as CustomNode)
-                  : null;
-
-              if (
-                source &&
-                target &&
-                source.x !== undefined &&
-                target.x !== undefined &&
-                source.y !== undefined &&
-                target.y !== undefined
-              ) {
-                const anyLink = link as any;
-                const textWidth =
-                  anyLink.__textWidth ??
-                  (anyLink.__textWidth = ctx.measureText(label).width);
-                const posX = (source.x + target.x) / 2 - textWidth / 2;
-                const posY = (source.y + target.y) / 2;
-                ctx.fillText(label, posX, posY);
-              }
-            }
-          }}
-          onNodeHover={showHighlight ? handleNodeHover : undefined}
-          onLinkHover={showHighlight ? handleLinkHover : undefined}
+          linkCurvature={0.25}
+          autoPauseRedraw={false}
           onNodeClick={handleNodeClick}
           onLinkClick={handleLinkClick}
-          backgroundColor={getBackgroundColor()}
-          linkColor={getLinkColor}
+          linkCanvasObjectMode={() => "after"}
+          linkCanvasObject={(link, ctx) => {
+            if (!showLinkLabels) return;
+            const source = link.source as any;
+            const target = link.target as any;
+            if (typeof source !== "object" || typeof target !== "object") return;
+
+            const label =
+              link.description ||
+              link.title ||
+              link.relation ||
+              link.human_readable_id ||
+              "";
+            if (!label) return;
+
+            const fontSize = 10;
+            ctx.font = `${fontSize}px Sans-Serif`;
+            const textWidth = ctx.measureText(label).width;
+            const bckgDimensions = [textWidth, fontSize].map(
+              (n) => n + fontSize * 0.2,
+            );
+
+            const x = (source.x + target.x) / 2;
+            const y = (source.y + target.y) / 2;
+
+            ctx.fillStyle =
+              theme.palette.mode === "dark"
+                ? "rgba(10, 10, 15, 0.85)"
+                : "rgba(255, 255, 255, 0.85)";
+            ctx.fillRect(
+              x - bckgDimensions[0] / 2,
+              y - bckgDimensions[1] / 2,
+              bckgDimensions[0],
+              bckgDimensions[1],
+            );
+
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillStyle =
+              theme.palette.mode === "dark" ? "#cbd5e1" : "#475569";
+            ctx.fillText(label, x, y);
+          }}
+          nodeCanvasObjectMode={() => "after"}
+          nodeCanvasObject={(node, ctx, globalScale) => {
+            const label = node.name || node.title || node.id;
+            const fontSize = 12 / globalScale;
+            ctx.font = `${fontSize}px Sans-Serif`;
+            const textWidth = ctx.measureText(label).width;
+            const bckgDimensions = [textWidth, fontSize].map(
+              (n) => n + fontSize * 0.2,
+            );
+
+            if (showHighlight && (hoverNode === node || highlightNodes.has(node))) {
+              paintRing(node, ctx);
+            }
+
+            if (showLabels) {
+              ctx.fillStyle =
+                theme.palette.mode === "dark"
+                  ? "rgba(10, 10, 15, 0.8)"
+                  : "rgba(255, 255, 255, 0.8)";
+              ctx.fillRect(
+                node.x! - bckgDimensions[0] / 2,
+                node.y! - bckgDimensions[1] / 2,
+                bckgDimensions[0],
+                bckgDimensions[1],
+              );
+
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.fillStyle =
+                theme.palette.mode === "dark" ? "#f1f5f9" : "#0f172a";
+              ctx.fillText(label, node.x!, node.y!);
+            }
+          }}
+          nodeLabel={(node) => `
+            <div style="background: ${
+              theme.palette.mode === "dark" ? "#1e1e24" : "#ffffff"
+            }; color: ${
+            theme.palette.mode === "dark" ? "#ffffff" : "#000000"
+          }; padding: 6px 10px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 12px; max-width: 280px; word-break: break-word;">
+              <strong>${node.name || node.title || node.id}</strong><br/>
+              <span style="opacity: 0.75;">Type: ${node.type || "ENTITY"}</span>
+              ${
+                node.community_name || node.community !== undefined
+                  ? `<br/><span style="opacity: 0.75;">Community: ${
+                      node.community_name || node.community
+                    }</span>`
+                  : ""
+              }
+              ${
+                node.source_file
+                  ? `<br/><span style="opacity: 0.75; font-size: 10px;">File: ${node.source_file}</span>`
+                  : ""
+              }
+              ${
+                node.description
+                  ? `<br/><span style="opacity: 0.85; margin-top: 4px; display: inline-block;">${
+                      node.description.length > 120
+                        ? node.description.slice(0, 120) + "..."
+                        : node.description
+                    }</span>`
+                  : ""
+              }
+            </div>
+          `}
+          onNodeHover={handleNodeHover}
+          onLinkHover={handleLinkHover}
+          linkWidth={(link: CustomLink) => (highlightLinks.has(link) ? 3 : 1)}
+          linkColor={(link: CustomLink) => {
+            if (highlightLinks.has(link)) {
+              return "red";
+            }
+            return theme.palette.mode === "dark"
+              ? "rgba(255,255,255,0.2)"
+              : "rgba(0,0,0,0.2)";
+          }}
+          linkDirectionalParticles={(link: CustomLink) =>
+            highlightLinks.has(link) ? 4 : 0
+          }
+          linkDirectionalParticleWidth={4}
+          linkDirectionalParticleSpeed={0.006}
         />
       ) : (
         <Suspense
@@ -1140,42 +1454,60 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
           }
         >
           <ForceGraph3D
-            key={graphRenderKey}
             ref={graphRef}
-            extraRenderers={extraRenderers}
             graphData={displayGraphData}
             nodeAutoColorBy={getNodeColorCategory}
             nodeRelSize={NODE_R}
             linkDirectionalArrowLength={3.5}
             linkDirectionalArrowRelPos={1}
-            linkWidth={(link) =>
-              showHighlight && highlightLinks.has(link as CustomLink) ? 5 : 1
-            }
-            linkDirectionalParticles={showHighlight ? 4 : 0}
-            linkDirectionalParticleWidth={(link) =>
-              showHighlight && highlightLinks.has(link as CustomLink) ? 4 : 0
-            }
-            nodeThreeObject={(node) => nodeThreeObject(node as CustomNode)}
+            linkCurvature={0.25}
+            onNodeClick={(node: any) => handleNodeClick(node as CustomNode)}
+            onLinkClick={(link: any) => handleLinkClick(link as CustomLink)}
+            onNodeHover={(node: any) => handleNodeHover(node as CustomNode | null)}
+            onLinkHover={(link: any) => handleLinkHover(link as CustomLink | null)}
+            extraRenderers={extraRenderers}
+            nodeThreeObject={nodeThreeObject}
             nodeThreeObjectExtend={true}
-            onNodeHover={
-              showHighlight
-                ? (node) => handleNodeHover(node as CustomNode | null)
-                : undefined
+            nodeLabel={(node: any) => `
+              <div style="background: ${
+                theme.palette.mode === "dark" ? "#1e1e24" : "#ffffff"
+              }; color: ${
+              theme.palette.mode === "dark" ? "#ffffff" : "#000000"
+            }; padding: 6px 10px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); font-size: 12px; max-width: 280px; word-break: break-word;">
+                <strong>${node.name || node.title || node.id}</strong><br/>
+                <span style="opacity: 0.75;">Type: ${node.type || "ENTITY"}</span>
+                ${
+                  node.community_name || node.community !== undefined
+                    ? `<br/><span style="opacity: 0.75;">Community: ${
+                        node.community_name || node.community
+                      }</span>`
+                    : ""
+                }
+              </div>
+            `}
+            linkWidth={(link: any) => (highlightLinks.has(link as CustomLink) ? 3 : 1)}
+            linkColor={(link: any) => {
+              if (highlightLinks.has(link as CustomLink)) {
+                return "red";
+              }
+              return theme.palette.mode === "dark"
+                ? "rgba(255,255,255,0.2)"
+                : "rgba(0,0,0,0.2)";
+            }}
+            linkDirectionalParticles={(link: any) =>
+              highlightLinks.has(link as CustomLink) ? 4 : 0
             }
-            onLinkHover={
-              showHighlight
-                ? (link) => handleLinkHover(link as CustomLink | null)
-                : undefined
-            }
-            onNodeClick={(node) => handleNodeClick(node as CustomNode)}
-            onLinkClick={(link) => handleLinkClick(link as CustomLink)}
-            backgroundColor={getBackgroundColor()}
-            linkColor={(link) => get3DLinkColor(link as CustomLink)}
+            linkDirectionalParticleWidth={4}
+            linkDirectionalParticleSpeed={0.006}
             linkThreeObjectExtend={true}
-            linkThreeObject={(link) => {
+            linkThreeObject={(link: any) => {
               if (!showLinkLabels) return new THREE.Object3D();
               const sprite = new SpriteText(
-                `${(link as CustomLink).relation || (link as CustomLink).type}`,
+                link.description ||
+                  link.title ||
+                  link.relation ||
+                  link.human_readable_id ||
+                  "",
               );
               sprite.color = "lightgrey";
               sprite.textHeight = 1.5;
@@ -1191,33 +1523,11 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
                 return acc;
               }, {} as Coords);
 
-              // Position sprite
               Object.assign(sprite.position, middlePos);
             }}
           />
         </Suspense>
       )}
-      <Box
-        sx={{
-          position: "absolute",
-          top: 10,
-          left: 10,
-          zIndex: 1400,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          gap: 1,
-        }}
-      >
-        <Chip
-          label={dataSource === "graphify" ? "Graphify Code Graph" : "GraphRAG Graph"}
-          size="small"
-          color={dataSource === "graphify" ? "secondary" : "primary"}
-          sx={{ fontWeight: 600 }}
-        />
-        <Typography variant="body2">Nodes: {nodeCount}</Typography>
-        <Typography variant="body2">Relationships: {linkCount}</Typography>
-      </Box>
     </Box>
   );
 };

@@ -13,6 +13,7 @@ import {
   Chip,
   Link,
   useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import AutoGraphIcon from "@mui/icons-material/AutoGraph";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
@@ -45,6 +46,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   onToggleTheme,
 }) => {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   return (
     <AppBar
@@ -55,8 +57,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         borderBottom: `1px solid ${theme.palette.divider}`,
         backgroundColor:
           theme.palette.mode === "dark"
-            ? "rgba(18, 18, 24, 0.85)"
-            : "rgba(255, 255, 255, 0.85)",
+            ? "rgba(18, 18, 24, 0.88)"
+            : "rgba(255, 255, 255, 0.88)",
         backdropFilter: "blur(12px)",
         zIndex: 1100,
       }}
@@ -65,19 +67,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         variant="dense"
         disableGutters
         sx={{
-          px: { xs: 1.5, sm: 2.5 },
+          px: { xs: 1, sm: 2.5 },
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          minHeight: 52,
+          minHeight: { xs: 46, sm: 52 },
+          gap: { xs: 0.5, sm: 1.5 },
         }}
       >
         {/* Brand */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
           <AutoGraphIcon
             sx={{
               color: dataSource === "graphify" ? "#a855f7" : "#0284c7",
-              fontSize: 26,
+              fontSize: { xs: 22, sm: 26 },
               transition: "color 0.3s ease",
             }}
           />
@@ -86,7 +89,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
             sx={{
               fontWeight: 700,
               letterSpacing: "-0.5px",
-              display: { xs: "none", sm: "block" },
+              display: { xs: "none", md: "block" },
               userSelect: "none",
             }}
           >
@@ -95,18 +98,20 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         </Box>
 
         {/* Navigation Tabs */}
-        <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center" }}>
+        <Box sx={{ flexGrow: 1, display: "flex", justifyContent: "center", minWidth: 0 }}>
           <Tabs
             value={tabIndex}
             onChange={onTabChange}
-            centered
+            centered={!isMobile}
+            variant={isMobile ? "standard" : "standard"}
             sx={{
-              minHeight: 44,
+              minHeight: { xs: 40, sm: 44 },
               "& .MuiTab-root": {
-                minHeight: 44,
+                minHeight: { xs: 40, sm: 44 },
                 py: 0.5,
-                px: { xs: 1, sm: 2 },
-                fontSize: { xs: "0.75rem", sm: "0.85rem" },
+                px: { xs: 0.75, sm: 2 },
+                minWidth: { xs: 52, sm: 80 },
+                fontSize: { xs: "0.72rem", sm: "0.85rem" },
                 fontWeight: 600,
                 textTransform: "none",
               },
@@ -119,7 +124,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         </Box>
 
         {/* Right Actions */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 }, flexShrink: 0 }}>
           {/* Dataset Switcher */}
           {hasGraphRAG && hasGraphify ? (
             <ToggleButtonGroup
@@ -128,7 +133,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               onChange={(_, val) => val && onDataSourceChange(val)}
               size="small"
               sx={{
-                height: 32,
+                height: { xs: 28, sm: 32 },
                 backgroundColor:
                   theme.palette.mode === "dark"
                     ? "rgba(255, 255, 255, 0.05)"
@@ -136,12 +141,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 borderRadius: 2,
                 "& .MuiToggleButton-root": {
                   border: "none",
-                  px: 1.25,
+                  px: { xs: 0.75, sm: 1.25 },
                   py: 0.25,
                   textTransform: "none",
                   fontWeight: 600,
-                  fontSize: "0.75rem",
+                  fontSize: { xs: "0.68rem", sm: "0.75rem" },
                   borderRadius: 2,
+                  lineHeight: 1,
+                  whiteSpace: "nowrap",
                 },
                 "& .Mui-selected": {
                   backgroundColor:
@@ -159,45 +166,62 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 },
               }}
             >
-              <ToggleButton value="graphify">
-                ⚡ Graphify {graphifyCount > 0 ? `(${graphifyCount})` : ""}
+              <ToggleButton value="graphify" aria-label="Graphify dataset">
+                {isMobile
+                  ? `⚡ ${graphifyCount > 0 ? graphifyCount : "Graphify"}`
+                  : `⚡ Graphify ${graphifyCount > 0 ? `(${graphifyCount})` : ""}`}
               </ToggleButton>
-              <ToggleButton value="graphrag">
-                🌐 GraphRAG {graphRAGCount > 0 ? `(${graphRAGCount})` : ""}
+              <ToggleButton value="graphrag" aria-label="GraphRAG dataset">
+                {isMobile
+                  ? `🌐 ${graphRAGCount > 0 ? graphRAGCount : "GraphRAG"}`
+                  : `🌐 GraphRAG ${graphRAGCount > 0 ? `(${graphRAGCount})` : ""}`}
               </ToggleButton>
             </ToggleButtonGroup>
           ) : hasGraphify ? (
             <Chip
-              label={`⚡ Graphify ${graphifyCount > 0 ? `(${graphifyCount})` : ""}`}
+              label={
+                isMobile
+                  ? `⚡ ${graphifyCount > 0 ? graphifyCount : "Graphify"}`
+                  : `⚡ Graphify ${graphifyCount > 0 ? `(${graphifyCount})` : ""}`
+              }
               size="small"
               color="secondary"
               variant="outlined"
-              sx={{ fontWeight: 600, fontSize: "0.75rem", height: 26 }}
+              sx={{ fontWeight: 600, fontSize: { xs: "0.68rem", sm: "0.75rem" }, height: { xs: 24, sm: 26 } }}
             />
           ) : hasGraphRAG ? (
             <Chip
-              label={`🌐 GraphRAG ${graphRAGCount > 0 ? `(${graphRAGCount})` : ""}`}
+              label={
+                isMobile
+                  ? `🌐 ${graphRAGCount > 0 ? graphRAGCount : "GraphRAG"}`
+                  : `🌐 GraphRAG ${graphRAGCount > 0 ? `(${graphRAGCount})` : ""}`
+              }
               size="small"
               color="primary"
               variant="outlined"
-              sx={{ fontWeight: 600, fontSize: "0.75rem", height: 26 }}
+              sx={{ fontWeight: 600, fontSize: { xs: "0.68rem", sm: "0.75rem" }, height: { xs: 24, sm: 26 } }}
             />
           ) : null}
 
           {/* Theme Mode Toggle */}
           {onToggleTheme && (
             <Tooltip title={darkMode ? "Switch to light mode" : "Switch to dark mode"}>
-              <IconButton onClick={onToggleTheme} size="small" color="inherit">
+              <IconButton
+                onClick={onToggleTheme}
+                size="small"
+                color="inherit"
+                sx={{ p: { xs: 0.5, sm: 0.75 } }}
+              >
                 {darkMode ? (
-                  <DarkModeOutlinedIcon fontSize="small" />
+                  <DarkModeOutlinedIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
                 ) : (
-                  <LightModeOutlinedIcon fontSize="small" />
+                  <LightModeOutlinedIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
                 )}
               </IconButton>
             </Tooltip>
           )}
 
-          {/* GitHub link */}
+          {/* GitHub link (hidden on small mobile to preserve header room) */}
           <Tooltip title="View Source on GitHub">
             <IconButton
               component={Link}
@@ -206,8 +230,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
               rel="noopener"
               size="small"
               color="inherit"
+              sx={{
+                p: { xs: 0.5, sm: 0.75 },
+                display: { xs: "none", sm: "inline-flex" },
+              }}
             >
-              <GitHubIcon fontSize="small" />
+              <GitHubIcon sx={{ fontSize: { xs: 18, sm: 20 } }} />
             </IconButton>
           </Tooltip>
         </Box>

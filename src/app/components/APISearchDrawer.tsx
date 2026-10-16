@@ -97,10 +97,17 @@ const APISearchDrawer: React.FC<APISearchDrawerProps> = ({
       anchor="left"
       open={apiDrawerOpen}
       onClose={toggleDrawer(false)}
-      sx={{ zIndex: 1500 }}
+      sx={{ zIndex: 1700 }}
     >
       <Box
-        sx={{ width: "60vw", padding: 2, paddingTop: 6, position: "relative" }}
+        sx={{
+          width: { xs: "100vw", sm: "80vw", md: "55vw" },
+          maxWidth: "100vw",
+          padding: { xs: 2, sm: 2.5 },
+          paddingTop: 6,
+          position: "relative",
+          boxSizing: "border-box",
+        }}
       >
         {/* Close Button at the top-right corner */}
         <IconButton
@@ -115,13 +122,9 @@ const APISearchDrawer: React.FC<APISearchDrawerProps> = ({
           <TextField
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            // onKeyDown={async (e) => {
-            //   if (e.key === "Enter" && !loadingLocal) {
-            //     await handleSearch("local"); // Default to global search on enter
-            //   }
-            // }}
             placeholder="Enter search query for API"
             fullWidth
+            size="small"
             margin="normal"
           />
 

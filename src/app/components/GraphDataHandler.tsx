@@ -173,9 +173,11 @@ const GraphDataHandler: React.FC<GraphDataHandlerProps> = ({
 
       {tabIndex === 1 && (
         <Box
-          p={3}
+          p={0}
           sx={{
-            height: isFullscreen ? "100vh" : "calc(100vh - 64px)",
+            height: isFullscreen
+              ? "100vh"
+              : { xs: "calc(100vh - 46px)", sm: "calc(100vh - 52px)" },
             width: isFullscreen ? "100vw" : "100%",
             position: isFullscreen ? "fixed" : "relative",
             top: 0,
@@ -234,7 +236,13 @@ const GraphDataHandler: React.FC<GraphDataHandlerProps> = ({
       )}
 
       {tabIndex === 2 && (
-        <Box sx={{ display: "flex", height: "calc(100vh - 64px)" }}>
+        <Box
+          sx={{
+            display: "flex",
+            height: { xs: "calc(100vh - 46px)", sm: "calc(100vh - 52px)" },
+            overflow: "hidden",
+          }}
+        >
           <Suspense
             fallback={
               <Box

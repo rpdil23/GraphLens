@@ -96,6 +96,9 @@ importers:
         specifier: ^2.1.4
         version: 2.1.4
     devDependencies:
+      '@babel/plugin-proposal-private-property-in-object':
+        specifier: ^7.21.11
+        version: 7.21.11
       '@types/d3-force':
         specifier: ^3.0.10
         version: 3.0.10

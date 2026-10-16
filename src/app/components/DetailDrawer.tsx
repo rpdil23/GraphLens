@@ -18,10 +18,7 @@ import {
 } from "../models/custom-graph-data";
 import { textUnitColumns } from "../models/text-unit";
 import { communityColumns } from "../models/community";
-import {
-  communityReportColumns,
-  findingColumns,
-} from "../models/community-report";
+import { findingColumns } from "../models/community-report";
 import { documentColumns } from "../models/document";
 import { covariateColumns } from "../models/covariate";
 import { MRT_ColumnDef } from "material-react-table";
@@ -57,63 +54,39 @@ const DetailDrawer: React.FC<DetailDrawerProps> = ({
   };
 
   const getFilteredNodeColumns = (
-    types: string[]
+    types: string[],
   ): MRT_ColumnDef<CustomNode>[] => {
     const validAccessorKeys = new Set<string>();
-    if (types.includes("CHUNK")) {
-      textUnitColumns.forEach((tc) => {
-        if (tc.accessorKey) {
-          validAccessorKeys.add(tc.accessorKey);
-        }
-      });
-    }
 
-    if (types.includes("COMMUNITY")) {
-      communityColumns.forEach((tc) => {
-        if (tc.accessorKey) {
-          validAccessorKeys.add(tc.accessorKey);
-        }
-      });
-      communityReportColumns.forEach((tc) => {
-        if (tc.accessorKey) {
-          validAccessorKeys.add(tc.accessorKey);
-        }
-      });
-    }
-
-    if (types.includes("RAW_DOCUMENT")) {
-      documentColumns.forEach((tc) => {
-        if (tc.accessorKey) {
-          validAccessorKeys.add(tc.accessorKey);
-        }
-      });
-    }
-
-    if (types.includes("COVARIATE")) {
-      covariateColumns.forEach((tc) => {
-        if (tc.accessorKey) {
-          validAccessorKeys.add(tc.accessorKey);
-        }
-      });
-    }
-
-    if (types.includes("FINDING")) {
-      findingColumns.forEach((tc) => {
-        if (tc.accessorKey) {
-          validAccessorKeys.add(tc.accessorKey);
-        }
-      });
-    }
-
-    entityColumns.forEach((tc) => {
-      if (tc.accessorKey) {
-        validAccessorKeys.add(tc.accessorKey);
+    types.forEach((type) => {
+      let columns: MRT_ColumnDef<any>[] = [];
+      switch (type) {
+        case "RAW_DOCUMENT":
+          columns = documentColumns;
+          break;
+        case "CHUNK":
+          columns = textUnitColumns;
+          break;
+        case "COMMUNITY":
+          columns = communityColumns;
+          break;
+        case "FINDING":
+          columns = findingColumns;
+          break;
+        case "covariate":
+          columns = covariateColumns;
+          break;
+        default:
+          columns = entityColumns;
+          break;
       }
+      columns.forEach((column) => {
+        if (column.accessorKey) {
+          validAccessorKeys.add(column.accessorKey);
+        }
+      });
     });
 
-    validAccessorKeys.add("uuid");
-    validAccessorKeys.add("name");
-    validAccessorKeys.add("type");
     validAccessorKeys.add("community_name");
     validAccessorKeys.add("source_file");
     validAccessorKeys.add("source_location");
@@ -122,7 +95,7 @@ const DetailDrawer: React.FC<DetailDrawerProps> = ({
 
     return customNodeColumns.filter(
       (column) =>
-        column.accessorKey && validAccessorKeys.has(column.accessorKey)
+        column.accessorKey && validAccessorKeys.has(column.accessorKey),
     );
   };
 
@@ -134,24 +107,65 @@ const DetailDrawer: React.FC<DetailDrawerProps> = ({
       anchor="bottom"
       open={bottomDrawerOpen}
       onClose={() => setBottomDrawerOpen(false)}
-      sx={{ zIndex: 1500 }}
+      PaperProps={{
+        sx: {
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          maxHeight: { xs: "88vh", sm: "75vh" },
+        },
+      }}
+      sx={{ zIndex: 1700 }}
     >
-      <Box sx={{ width: "100%", padding: 3 }}>
+      <Box
+        sx={{
+          width: "100%",
+          padding: { xs: 2, sm: 3 },
+          boxSizing: "border-box",
+        }}
+      >
+        {/* Mobile Pull Handle */}
+        <Box
+          sx={{
+            width: 38,
+            height: 4,
+            borderRadius: 2,
+            bgcolor: "text.disabled",
+            mx: "auto",
+            mb: 1.5,
+            opacity: 0.4,
+            display: { xs: "block", sm: "none" },
+          }}
+        />
+
         <Box
           sx={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             marginBottom: 2,
+            gap: 1,
           }}
         >
           {selectedNode ? (
-            <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: "bold",
+                fontSize: { xs: "0.95rem", sm: "1.25rem" },
+                wordBreak: "break-word",
+              }}
+            >
               Node Details: {selectedNode.name.toString()}
             </Typography>
           ) : (
-            <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-              {" "}
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: "bold",
+                fontSize: { xs: "0.8rem", sm: "1.05rem" },
+                wordBreak: "break-word",
+              }}
+            >
               {selectedRelationship && (
                 <>
                   {"(:"}
@@ -177,147 +191,140 @@ const DetailDrawer: React.FC<DetailDrawerProps> = ({
           )}
           <IconButton
             onClick={() => setBottomDrawerOpen(false)}
+            size="small"
             sx={{ marginLeft: "auto" }}
           >
-            <CloseIcon />
+            <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
+
         {selectedNode && (
           <Card sx={{ marginBottom: 3 }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+            <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                 Node Information
               </Typography>
-              <Typography>ID: {selectedNode.uuid}</Typography>
-              <Typography>Title: {selectedNode.name}</Typography>
+              <Typography variant="body2">ID: {selectedNode.uuid}</Typography>
+              <Typography variant="body2">Title: {selectedNode.name}</Typography>
               {selectedNode.covariate_type && (
-                <Typography>
+                <Typography variant="body2">
                   Covariate Type: {selectedNode.covariate_type}
                 </Typography>
               )}
-              <Typography>
-                Type: <Chip label={selectedNode.type} size="small" />{" "}
+              <Typography variant="body2" sx={{ my: 0.5 }}>
+                Type: <Chip label={selectedNode.type} size="small" />
               </Typography>
               {selectedNode.title && (
-                <Typography>
+                <Typography variant="body2">
                   Community Report Title: {selectedNode.title}
                 </Typography>
               )}
               {selectedNode.summary && (
-                <Typography>Summary: {selectedNode.summary}</Typography>
+                <Typography variant="body2">Summary: {selectedNode.summary}</Typography>
               )}
               {selectedNode.n_tokens && (
-                <Typography>
+                <Typography variant="body2">
                   Number of Tokens: {selectedNode.n_tokens}
                 </Typography>
               )}
 
               {selectedNode.community_name && (
-                <Typography>Community: {selectedNode.community_name}</Typography>
+                <Typography variant="body2">Community: {selectedNode.community_name}</Typography>
               )}
               {selectedNode.source_file && (
-                <Typography>
+                <Typography variant="body2">
                   Source File: {selectedNode.source_file}
                   {selectedNode.source_location ? ` (${selectedNode.source_location})` : ""}
                 </Typography>
               )}
               {selectedNode.confidence && (
-                <Typography>Confidence: {selectedNode.confidence}</Typography>
+                <Typography variant="body2">Confidence: {selectedNode.confidence}</Typography>
               )}
               {selectedNode.degree !== undefined && (
-                <Typography>Degree: {selectedNode.degree}</Typography>
+                <Typography variant="body2">Degree: {selectedNode.degree}</Typography>
               )}
               {selectedNode.description && (
-                <Typography>Description: {selectedNode.description}</Typography>
+                <Typography variant="body2">Description: {selectedNode.description}</Typography>
               )}
               {selectedNode.human_readable_id && (
-                <Typography>
+                <Typography variant="body2">
                   Human Readable ID: {selectedNode.human_readable_id}
                 </Typography>
               )}
               {selectedNode.raw_content && (
-                <Typography>Raw Content: {selectedNode.raw_content}</Typography>
+                <Typography variant="body2">Raw Content: {selectedNode.raw_content}</Typography>
               )}
             </CardContent>
           </Card>
         )}
+
         {selectedRelationship && (
           <Card sx={{ marginBottom: 3 }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+            <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: "bold", mb: 1 }}>
                 Relationship Information:
               </Typography>
-              <Typography>ID: {selectedRelationship.id}</Typography>
-
-              <Typography>
+              <Typography variant="body2">ID: {selectedRelationship.id}</Typography>
+              <Typography variant="body2">
                 Source: {getNodeName(selectedRelationship.source)}
               </Typography>
-              <Typography>
+              <Typography variant="body2">
                 Target: {getNodeName(selectedRelationship.target)}
               </Typography>
-              <Typography>
+              <Typography variant="body2" sx={{ display: "block" }}>
                 Relation: {selectedRelationship.relation || selectedRelationship.type}
               </Typography>
               {selectedRelationship.source_file && (
-                <Typography>
+                <Typography variant="body2">
                   Source File: {selectedRelationship.source_file}
-                  {selectedRelationship.source_location ? ` (${selectedRelationship.source_location})` : ""}
                 </Typography>
               )}
               {selectedRelationship.confidence && (
-                <Typography>
+                <Typography variant="body2">
                   Confidence: {selectedRelationship.confidence}
-                  {selectedRelationship.confidence_score ? ` (${(selectedRelationship.confidence_score * 100).toFixed(0)}%)` : ""}
                 </Typography>
               )}
               {selectedRelationship.description && (
-                <Typography>
+                <Typography variant="body2">
                   Description: {selectedRelationship.description}
                 </Typography>
               )}
-              {selectedRelationship.human_readable_id && (
-                <Typography>
-                  Human Readable ID: {selectedRelationship.human_readable_id}
-                </Typography>
-              )}
               {selectedRelationship.weight && (
-                <Typography>Weight: {selectedRelationship.weight}</Typography>
-              )}
-              {selectedRelationship.source_degree && (
-                <Typography>
-                  Source Degree: {selectedRelationship.source_degree}
-                </Typography>
-              )}
-              {selectedRelationship.target_degree && (
-                <Typography>
-                  Target Degree: {selectedRelationship.target_degree}
+                <Typography variant="body2">
+                  Weight: {selectedRelationship.weight}
                 </Typography>
               )}
               {selectedRelationship.rank && (
-                <Typography>Rank: {selectedRelationship.rank}</Typography>
+                <Typography variant="body2">
+                  Rank: {selectedRelationship.rank}
+                </Typography>
+              )}
+              {selectedRelationship.human_readable_id && (
+                <Typography variant="body2">
+                  Human Readable ID: {selectedRelationship.human_readable_id}
+                </Typography>
               )}
             </CardContent>
           </Card>
         )}
-        <Box sx={{ marginBottom: 2 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
-            Linked Nodes
-          </Typography>
-          <DataTable columns={filteredColumns} data={linkedNodes} />
-        </Box>
-        {selectedNode && (
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
-              Linked Relationships
-            </Typography>
 
+        {linkedNodes.length > 0 && (
+          <Box sx={{ marginBottom: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
+              Linked Nodes:
+            </Typography>
+            <DataTable data={linkedNodes} columns={filteredColumns} />
+          </Box>
+        )}
+
+        {linkedRelationships.length > 0 && (
+          <Box sx={{ marginBottom: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
+              Linked Relationships:
+            </Typography>
             <DataTable
+              data={linkedRelationships}
               columns={customLinkColumns}
-              data={linkedRelationships.map((link) => ({
-                ...link,
-                source: getNodeName(link.source),
-                target: getNodeName(link.target),
-              }))}
             />
           </Box>
         )}
