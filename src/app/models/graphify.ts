@@ -103,16 +103,46 @@ export const graphifyNodeColumns: MRT_ColumnDef<GraphifyNode>[] = [
 
 export const graphifyLinkColumns: MRT_ColumnDef<GraphifyLink>[] = [
   {
-    accessorKey: "source",
+    id: "source",
     header: "Source Node",
+    accessorFn: (row: GraphifyLink) => {
+      const s = row.source as any;
+      return typeof s === "object" && s !== null
+        ? s.label || s.name || s.id || ""
+        : s || "";
+    },
+    Cell: ({ cell }) => {
+      const val = cell.getValue();
+      return typeof val === "object" && val !== null
+        ? (val as any).label ||
+            (val as any).name ||
+            (val as any).id ||
+            JSON.stringify(val)
+        : String(val ?? "");
+    },
   },
   {
     accessorKey: "relation",
     header: "Relation",
   },
   {
-    accessorKey: "target",
+    id: "target",
     header: "Target Node",
+    accessorFn: (row: GraphifyLink) => {
+      const t = row.target as any;
+      return typeof t === "object" && t !== null
+        ? t.label || t.name || t.id || ""
+        : t || "";
+    },
+    Cell: ({ cell }) => {
+      const val = cell.getValue();
+      return typeof val === "object" && val !== null
+        ? (val as any).label ||
+            (val as any).name ||
+            (val as any).id ||
+            JSON.stringify(val)
+        : String(val ?? "");
+    },
   },
   {
     accessorKey: "confidence",

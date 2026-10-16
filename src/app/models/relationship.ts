@@ -22,12 +22,44 @@ export const relationshipColumns: MRT_ColumnDef<Relationship>[] = [
         header: "human_readable_id",
     },
     {
-        accessorKey: "source",
-        header: "source",
+      id: "source",
+      header: "source",
+      accessorFn: (row: Relationship) => {
+        const s = row.source as any;
+        return typeof s === "object" && s !== null
+          ? s.name || s.title || s.label || s.id || ""
+          : s || "";
+      },
+      Cell: ({ cell }) => {
+        const val = cell.getValue();
+        return typeof val === "object" && val !== null
+          ? (val as any).name ||
+              (val as any).title ||
+              (val as any).label ||
+              (val as any).id ||
+              JSON.stringify(val)
+          : String(val ?? "");
+      },
     },
     {
-        accessorKey: "target",
-        header: "target",
+      id: "target",
+      header: "target",
+      accessorFn: (row: Relationship) => {
+        const t = row.target as any;
+        return typeof t === "object" && t !== null
+          ? t.name || t.title || t.label || t.id || ""
+          : t || "";
+      },
+      Cell: ({ cell }) => {
+        const val = cell.getValue();
+        return typeof val === "object" && val !== null
+          ? (val as any).name ||
+              (val as any).title ||
+              (val as any).label ||
+              (val as any).id ||
+              JSON.stringify(val)
+          : String(val ?? "");
+      },
     },
     {
         accessorKey: "description",

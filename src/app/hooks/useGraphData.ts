@@ -96,8 +96,12 @@ function buildGraphDataFromGraphify(
   }
 
   links.forEach((link) => {
-    const sourceNode = nodesMap[link.source as string];
-    const targetNode = nodesMap[link.target as string];
+    const sourceId =
+      typeof link.source === "object" ? link.source.id : link.source;
+    const targetId =
+      typeof link.target === "object" ? link.target.id : link.target;
+    const sourceNode = nodesMap[sourceId];
+    const targetNode = nodesMap[targetId];
     if (sourceNode && targetNode) {
       if (!sourceNode.neighbors!.includes(targetNode))
         sourceNode.neighbors!.push(targetNode);
@@ -386,8 +390,12 @@ function buildGraphData(
   }
 
   links.forEach((link) => {
-    const sourceNode = nodesMap[link.source];
-    const targetNode = nodesMap[link.target];
+    const sourceId =
+      typeof link.source === "object" ? link.source.id : link.source;
+    const targetId =
+      typeof link.target === "object" ? link.target.id : link.target;
+    const sourceNode = nodesMap[sourceId];
+    const targetNode = nodesMap[targetId];
     if (sourceNode && targetNode) {
       if (!sourceNode.neighbors!.includes(targetNode))
         sourceNode.neighbors!.push(targetNode);

@@ -588,7 +588,15 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
       const nodeEl = document.createElement("div");
       nodeEl.textContent = node.name || node.id;
       nodeEl.style.color =
-        node.color || (theme.palette.mode === "dark" ? "#ffffff" : "#222222");
+        theme.palette.mode === "dark" ? "#f1f5f9" : "#0f172a";
+      nodeEl.style.backgroundColor =
+        theme.palette.mode === "dark"
+          ? "rgba(10, 10, 15, 0.8)"
+          : "rgba(255, 255, 255, 0.85)";
+      nodeEl.style.border =
+        theme.palette.mode === "dark"
+          ? "1px solid rgba(255, 255, 255, 0.15)"
+          : "1px solid rgba(0, 0, 0, 0.12)";
       nodeEl.style.padding = "2px 4px";
       nodeEl.style.borderRadius = "4px";
       nodeEl.style.fontSize = "10px";
@@ -1306,6 +1314,7 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
           key={graphRenderKey}
           ref={graphRef}
           graphData={displayGraphData}
+          backgroundColor={getBackgroundColor()}
           nodeAutoColorBy={getNodeColorCategory}
           nodeRelSize={NODE_R}
           cooldownTicks={100}
@@ -1456,6 +1465,7 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
           <ForceGraph3D
             ref={graphRef}
             graphData={displayGraphData}
+            backgroundColor={getBackgroundColor()}
             nodeAutoColorBy={getNodeColorCategory}
             nodeRelSize={NODE_R}
             linkDirectionalArrowLength={3.5}
@@ -1509,7 +1519,8 @@ const GraphViewer: React.FC<GraphViewerProps> = ({
                   link.human_readable_id ||
                   "",
               );
-              sprite.color = "lightgrey";
+              sprite.color =
+                theme.palette.mode === "dark" ? "#cbd5e1" : "#475569";
               sprite.textHeight = 1.5;
               return sprite;
             }}

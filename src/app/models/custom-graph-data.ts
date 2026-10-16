@@ -55,8 +55,8 @@ export interface CustomNode extends NodeObject {
   }
   
 export interface CustomLink extends LinkObject {
-    source: string;
-    target: string;
+    source: string | CustomNode;
+    target: string | CustomNode;
     type: string;
     weight?: number;
     description?: string;
@@ -80,6 +80,21 @@ export interface CustomGraphData extends GraphData {
     links: CustomLink[];
   }
 
+
+  const formatCellValue = ({ renderedCellValue }: { renderedCellValue: any }) =>
+    typeof renderedCellValue === "object" && renderedCellValue !== null
+      ? JSON.stringify(renderedCellValue, null, Array.isArray(renderedCellValue) ? 2 : undefined)
+      : renderedCellValue;
+
+  const formatEndpoint = (val: any) =>
+    typeof val === "object" && val !== null
+      ? val.name || val.title || val.label || val.id || JSON.stringify(val)
+      : String(val ?? "");
+
+  const getEndpointText = (val: any) =>
+    typeof val === "object" && val !== null
+      ? val.name || val.title || val.label || val.id || ""
+      : val || "";
 
   export const customNodeColumns: MRT_ColumnDef<CustomNode>[] = [
     {
@@ -109,26 +124,17 @@ export interface CustomGraphData extends GraphData {
     {
       accessorKey: "graph_embedding",
       header: "graph_embedding",
-      Cell: ({ renderedCellValue }) =>
-        Array.isArray(renderedCellValue)
-          ? JSON.stringify(renderedCellValue, null, 2)
-          : renderedCellValue,
+      Cell: formatCellValue,
     },
     {
       accessorKey: "text_unit_ids",
       header: "text_unit_ids",
-      Cell: ({ renderedCellValue }) =>
-        Array.isArray(renderedCellValue)
-          ? JSON.stringify(renderedCellValue, null, 2)
-          : renderedCellValue,
+      Cell: formatCellValue,
     },
     {
       accessorKey: "description_embedding",
       header: "description_embedding",
-      Cell: ({ renderedCellValue }) =>
-        Array.isArray(renderedCellValue)
-          ? JSON.stringify(renderedCellValue, null, 2)
-          : renderedCellValue,
+      Cell: formatCellValue,
     },
     {
       accessorKey: "level",
@@ -161,10 +167,7 @@ export interface CustomGraphData extends GraphData {
     {
       accessorKey: "findings",
       header: "findings",
-      Cell: ({ renderedCellValue }) =>
-        Array.isArray(renderedCellValue)
-          ? JSON.stringify(renderedCellValue, null, 2)
-          : renderedCellValue,
+      Cell: formatCellValue,
     },
     {
       accessorKey: "text",
@@ -173,26 +176,17 @@ export interface CustomGraphData extends GraphData {
     {
       accessorKey: "document_ids",
       header: "document_ids",
-      Cell: ({ renderedCellValue }) =>
-        Array.isArray(renderedCellValue)
-          ? JSON.stringify(renderedCellValue, null, 2)
-          : renderedCellValue,
+      Cell: formatCellValue,
     },
     {
       accessorKey: "entity_ids",
       header: "entity_ids",
-      Cell: ({ renderedCellValue }) =>
-        Array.isArray(renderedCellValue)
-          ? JSON.stringify(renderedCellValue, null, 2)
-          : renderedCellValue,
+      Cell: formatCellValue,
     },
     {
       accessorKey: "relationship_ids",
       header: "relationship_ids",
-      Cell: ({ renderedCellValue }) =>
-        Array.isArray(renderedCellValue)
-          ? JSON.stringify(renderedCellValue, null, 2)
-          : renderedCellValue,
+      Cell: formatCellValue,
     },
     {
       accessorKey: "community_name",
@@ -218,71 +212,74 @@ export interface CustomGraphData extends GraphData {
 
   export const customLinkColumns: MRT_ColumnDef<CustomLink>[] = [
     {
-        accessorKey: "source",
-        header: "source",
+      id: "source",
+      header: "source",
+      accessorFn: (row: CustomLink) => getEndpointText(row.source),
+      Cell: ({ cell, renderedCellValue }) =>
+        formatEndpoint(cell.getValue() || renderedCellValue),
     },
     {
-        accessorKey: "target",
-        header: "target",
+      id: "target",
+      header: "target",
+      accessorFn: (row: CustomLink) => getEndpointText(row.target),
+      Cell: ({ cell, renderedCellValue }) =>
+        formatEndpoint(cell.getValue() || renderedCellValue),
     },
     {
-        accessorKey: "relation",
-        header: "relation",
+      accessorKey: "relation",
+      header: "relation",
     },
     {
-        accessorKey: "type",
-        header: "type",
+      accessorKey: "type",
+      header: "type",
     },
     {
-        accessorKey: "confidence",
-        header: "confidence",
+      accessorKey: "confidence",
+      header: "confidence",
     },
     {
-        accessorKey: "source_file",
-        header: "source_file",
+      accessorKey: "source_file",
+      header: "source_file",
     },
     {
-        accessorKey: "source_location",
-        header: "source_location",
+      accessorKey: "source_location",
+      header: "source_location",
     },
     {
-        accessorKey: "weight",
-        header: "weight",
+      accessorKey: "weight",
+      header: "weight",
     },
     {
-        accessorKey: "description",
-        header: "description",
+      accessorKey: "description",
+      header: "description",
     },
     {
-        accessorKey: "text_unit_ids",
-        header: "text_unit_ids",
-        Cell: ({ renderedCellValue }) =>
-          Array.isArray(renderedCellValue)
-            ? JSON.stringify(renderedCellValue, null, 2)
-            : renderedCellValue,
+      accessorKey: "text_unit_ids",
+      header: "text_unit_ids",
+      Cell: formatCellValue,
     },
     {
-        accessorKey: "id",
-        header: "id",
+      accessorKey: "id",
+      header: "id",
     },
     {
-        accessorKey: "human_readable_id",
-        header: "human_readable_id",
+      accessorKey: "human_readable_id",
+      header: "human_readable_id",
     },
     {
-        accessorKey: "source_degree",
-        header: "source_degree",
+      accessorKey: "source_degree",
+      header: "source_degree",
     },
     {
-        accessorKey: "target_degree",
-        header: "target_degree",
+      accessorKey: "target_degree",
+      header: "target_degree",
     },
     {
       accessorKey: "combined_degree",
       header: "combined_degree",
     },
     {
-        accessorKey: "rank",
-        header: "rank",
+      accessorKey: "rank",
+      header: "rank",
     },
-];
+  ];

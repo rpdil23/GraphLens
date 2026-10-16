@@ -42,15 +42,21 @@ const DetailDrawer: React.FC<DetailDrawerProps> = ({
   linkedRelationships,
 }) => {
   const getNodeName = (node: string | CustomNode) => {
-    if (typeof node === "object") return node.name;
+    if (typeof node === "object" && node !== null)
+      return node.name || node.title || node.id || "";
     const match = linkedNodes.find((n) => n.id === node);
-    return match ? match.name : node;
+    return match
+      ? match.name || match.title || match.id
+      : typeof node === "string"
+        ? node
+        : "";
   };
 
   const getNodeType = (node: string | CustomNode) => {
-    if (typeof node === "object") return node.type;
+    if (typeof node === "object" && node !== null)
+      return node.type || "ENTITY";
     const match = linkedNodes.find((n) => n.id === node);
-    return match ? match.type : node;
+    return match ? match.type : typeof node === "string" ? node : "";
   };
 
   const getFilteredNodeColumns = (
@@ -87,6 +93,8 @@ const DetailDrawer: React.FC<DetailDrawerProps> = ({
       });
     });
 
+    validAccessorKeys.add("name");
+    validAccessorKeys.add("uuid");
     validAccessorKeys.add("community_name");
     validAccessorKeys.add("source_file");
     validAccessorKeys.add("source_location");
@@ -155,7 +163,7 @@ const DetailDrawer: React.FC<DetailDrawerProps> = ({
                 wordBreak: "break-word",
               }}
             >
-              Node Details: {selectedNode.name.toString()}
+              Node Details: {selectedNode.name ? selectedNode.name.toString() : selectedNode.title || selectedNode.id || ""}
             </Typography>
           ) : (
             <Typography
